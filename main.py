@@ -10,7 +10,7 @@ from asyncio import sleep as async_sleep
 import logging
 from typing import List
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -18,6 +18,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 
 from core.config.consts import CORE_DIR_PATH, DATA_DIR_PATH
+from core.handlers.quiz_router import QuizRouter
 from core.logging.my_logger import MyLogger
 from core.config.config_reader import config
 
@@ -52,15 +53,20 @@ class StartBot:
             CallbackAnswerMiddleware()  
         )
 
-    def __include_quiz_router(self) -> None:
+    def __include_quiz_router(self) -> Router:
         """ ## Подключает роутер квиза """
-        pass
+        router = Router()
+        quiz_handler = QuizRouter()
+        router.callback_query.register(
+            quiz_handler.start_quiz, F.data.in_(('go_answer_to_questions')))
+        return router
 
     def _include_routers(self) -> None:
         """  ## Подключение роутеров """
 
         self.dp.include_routers(
             main_menu.router,  # Обработчик добавления объекта недвижимости в БД
+            self.__include_quiz_router()
         )
 
     async def __main(self) -> None:
