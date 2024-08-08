@@ -58,24 +58,7 @@ class QuizRouter:
 
     def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
-        self.answers_json_path = join_path(DATA_DIR_PATH, f'{telegram_id}_user_answers.json')
-
-    async def start_quiz(self, call: CallbackQuery, state: FSMContext) -> None:
-        await to_thread(self.__make_json_answers_file_name, call.from_user.id)
-        err_msg:str = 'При старте квиза возникла ошибка'
-        try:
-            await state.set_state(QuizFormStates.waiting_for_answer)
-            await self.__make_questions_list()
-            await call.message.answer('Погнали!')
-            await call.message.answer(
-                self.questions_list[0], reply_markup=await self.bkb.skeep_qst_btn())
-            self.current_qst = self.questions_list[0]
-
-        except TelegramBadRequest as ex:
-            await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
-
-        except Exception as ex:
-            await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)    
+        self.answers_json_path = join_path(DATA_DIR_PATH, f'{telegram_id}_user_answers.json')   
     
     def __delete_qst(self) -> None:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
@@ -107,10 +90,10 @@ class QuizRouter:
         try:
             await to_thread(self.__save_user_answer, message.text.strip(' ').strip())
             if self.questions_list:  # Если список не пустой
+                self.current_qst = self.questions_list[0]  # Сохраняем следующий вопрос
                 await message.answer(self.questions_list[0], 
                     reply_markup=await self.bkb.skeep_qst_btn())
-                self.current_qst = self.questions_list[0]
-                await to_thread(self.__delete_qst)
+                await to_thread(self.__delete_qst)  # Удаляем вопрос из списка
                 self.answ_index += 1
                 return
             
@@ -126,3 +109,21 @@ class QuizRouter:
 
         except Exception as ex:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)    
+
+    async def start_quiz(self, call: CallbackQuery, state: FSMContext) -> None:
+        await to_thread(self.__make_json_answers_file_name, call.from_user.id)
+        err_msg:str = 'При старте квиза возникла ошибка'
+        try:
+            await state.set_state(QuizFormStates.waiting_for_answer)
+            await self.__make_questions_list()
+            await call.message.answer('Погнали!')
+            await call.message.answer(
+                self.questions_list[0], reply_markup=await self.bkb.skeep_qst_btn())
+            self.current_qst = self.questions_list[0]
+            await to_thread(self.__delete_qst)
+
+        except TelegramBadRequest as ex:
+            await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
+
+        except Exception as ex:
+            await to_thread(self.logger.exception, msg=err_msg, exc_info=ex) 
