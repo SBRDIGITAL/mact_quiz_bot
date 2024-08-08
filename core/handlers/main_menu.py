@@ -21,8 +21,8 @@ router = Router()
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await clear_state(state)
     try:
-        await message.answer(
-            TEXT_ANSWERS_TXT['main_menu_txt'], reply_markup=await bkb.main_menu_kb())
+        await message.answer(f"{message.from_user.first_name}{TEXT_ANSWERS_TXT['main_menu_txt']}",
+            reply_markup=await bkb.main_menu_kb())
     
     except TelegramBadRequest as ex:
         await to_thread(logger.exception,

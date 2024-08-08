@@ -91,14 +91,16 @@ class QuizRouter:
             await to_thread(self.__save_user_answer, message.text.strip(' ').strip())
             if self.questions_list:  # Если список не пустой
                 self.current_qst = self.questions_list[0]  # Сохраняем следующий вопрос
-                await message.answer(self.questions_list[0], 
+                await message.answer(
+                    f"{message.from_user.first_name}, {self.questions_list[0].lower()}", 
                     reply_markup=await self.bkb.skeep_qst_btn())
                 await to_thread(self.__delete_qst)  # Удаляем вопрос из списка
                 self.answ_index += 1
                 return
             
             await state.clear()
-            await message.answer('Вы ответили на все вопросы!\nСпасибо!',
+            await message.answer(
+                f'{message.from_user.first_name}, вы ответили на все вопросы!\nСпасибо!',
                 reply_markup=ReplyKeyboardRemove())
             await self.__save_json_file()
             await self.__notify_admin_about_new_answ()
@@ -118,7 +120,9 @@ class QuizRouter:
             await self.__make_questions_list()
             await call.message.answer('Погнали!')
             await call.message.answer(
-                self.questions_list[0], reply_markup=await self.bkb.skeep_qst_btn())
+                f"{call.from_user.first_name}, {self.questions_list[0].lower()}",
+                reply_markup=await self.bkb.skeep_qst_btn())
+            
             self.current_qst = self.questions_list[0]
             await to_thread(self.__delete_qst)
 
