@@ -2,17 +2,14 @@ from dataclasses import dataclass
 
 from os import makedirs
 
-import traceback
-
 import asyncio
 from asyncio import sleep as async_sleep
 
-import logging
 from typing import List
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 

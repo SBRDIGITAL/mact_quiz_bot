@@ -2,8 +2,8 @@ from typing import Dict, List
 
 from asyncio import to_thread
 
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 
 
 class BotKeyboardsBuilder:
@@ -33,7 +33,12 @@ class BotKeyboardsBuilder:
     async def main_menu_kb(self, sizes: int = 1) -> InlineKeyboardMarkup:
         """ ## Создаёт клавиатуру главного меню """
         return await self.__inline_builder(self.BOT_KEYBOARDS['main_menu_kb'], sizes)
+    
+    def __get_reply_builder(self) -> ReplyKeyboardBuilder:
+        builder = ReplyKeyboardBuilder()
+        return builder
 
-        
-
-        
+    async def skeep_qst_btn(self) -> ReplyKeyboardMarkup:
+        builder = await to_thread(self.__get_reply_builder)
+        builder.button(text='Пропустить ✅')
+        return builder.as_markup(resize_keyboard=True)        

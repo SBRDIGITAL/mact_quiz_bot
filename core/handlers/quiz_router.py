@@ -9,8 +9,8 @@ from asyncio import to_thread
 
 import aiofiles
 
-from aiogram import Router, F, Bot
-from aiogram.types import CallbackQuery, Message, FSInputFile
+from aiogram import Bot
+from aiogram.types import CallbackQuery, Message, FSInputFile, ReplyKeyboardRemove
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
@@ -18,14 +18,14 @@ from aiogram.fsm.context import FSMContext
 from core.config.consts import DATA_DIR_PATH
 from core.logging.my_logger import MyLogger
 from core.states.user_states import QuizFormStates
-
-
+from core.utils.keyboards.kb_builder import BotKeyboardsBuilder as BKB
 
 
 
 class QuizRouter:
 
     def __init__(self, bot: Bot, ADMIN_ID: int) -> None:
+        self.bkb = BKB()
         self.ADMIN_ID:int = ADMIN_ID
         self.bot: Bot = bot
         self.logger = MyLogger(name='QuizRouter_logger', is_console=False).get_logger()
@@ -67,7 +67,8 @@ class QuizRouter:
             await state.set_state(QuizFormStates.waiting_for_answer)
             await self.__make_questions_list()
             await call.message.answer('Погнали!')
-            await call.message.answer(self.questions_list[0])
+            await call.message.answer(
+                self.questions_list[0], reply_markup=await self.bkb.skeep_qst_btn())
             self.current_qst = self.questions_list[0]
 
         except TelegramBadRequest as ex:
@@ -106,14 +107,16 @@ class QuizRouter:
         try:
             await to_thread(self.__save_user_answer, message.text.strip(' ').strip())
             if self.questions_list:  # Если список не пустой
-                await message.answer(self.questions_list[0])
+                await message.answer(self.questions_list[0], 
+                    reply_markup=await self.bkb.skeep_qst_btn())
                 self.current_qst = self.questions_list[0]
                 await to_thread(self.__delete_qst)
                 self.answ_index += 1
                 return
             
             await state.clear()
-            await message.answer('Вы ответили на все вопросы!\nСпасибо!')
+            await message.answer('Вы ответили на все вопросы!\nСпасибо!',
+                reply_markup=ReplyKeyboardRemove())
             await self.__save_json_file()
             await self.__notify_admin_about_new_answ()
             await self.__delete_file()
