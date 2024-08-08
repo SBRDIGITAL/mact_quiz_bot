@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     # Желательно вместо str использовать SecretStr 
     # для конфиденциальных данных, например, токена бота
     BOT_TOKEN: SecretStr
+    ADMIN_ID: SecretStr
 
 
     # Начиная со второй версии pydantic, настройки класса настроек задаются

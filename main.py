@@ -11,6 +11,7 @@ import logging
 from typing import List
 
 from aiogram import Bot, Dispatcher, F, Router
+from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -23,6 +24,7 @@ from core.logging.my_logger import MyLogger
 from core.config.config_reader import config
 
 from core.handlers import main_menu
+from core.states.user_states import QuizFormStates
 
 
 
@@ -31,6 +33,7 @@ logger = MyLogger(name='main_py_logger', is_console=False).get_logger()
 
 @dataclass
 class StartBot:
+    ADMIN_ID:int = int(config.ADMIN_ID.get_secret_value())
     bot = Bot(  # Экземпляр бота
         token=config.BOT_TOKEN.get_secret_value(),
         default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -56,9 +59,11 @@ class StartBot:
     def __include_quiz_router(self) -> Router:
         """ ## Подключает роутер квиза """
         router = Router()
-        quiz_handler = QuizRouter()
+        quiz_handler = QuizRouter(self.bot, self.ADMIN_ID)
         router.callback_query.register(
             quiz_handler.start_quiz, F.data.in_(('go_answer_to_questions')))
+        router.message.register(quiz_handler.handling_user_answer, 
+            StateFilter(QuizFormStates.waiting_for_answer,), F.text)
         return router
 
     def _include_routers(self) -> None:
@@ -74,7 +79,8 @@ class StartBot:
         try:
             await self.bot.delete_webhook(drop_pending_updates=True)  # Пропуск обновлений
             await self.dp.start_polling(  # Запуск пуллинга
-                    self.bot
+                    self.bot,
+                    # self.ADMIN_ID
                 )
         finally:
             await async_sleep(0.15)
