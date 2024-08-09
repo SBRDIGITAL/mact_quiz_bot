@@ -16,11 +16,11 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 
 from core.config.consts import CORE_DIR_PATH, DATA_DIR_PATH
-from core.handlers.quiz_router import QuizRouter
 from core.logging.my_logger import MyLogger
 from core.config.config_reader import config
 
 from core.handlers import main_menu
+from core.handlers.quiz_router import QuizRouter
 from core.states.user_states import QuizFormStates
 
 
