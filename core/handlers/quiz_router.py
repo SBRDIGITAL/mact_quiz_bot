@@ -42,7 +42,7 @@ class QuizRouter:
         
     async def __save_json_file(self, telegram_id: int, save_data: Dict[str, List[str]]) -> str:
         """ ## Сохраняет в .json файл ответы пользователя """
-        file_path:str = await self.__make_json_answers_file_name(telegram_id)
+        file_path:str = await to_thread(self.__make_json_answers_file_name, telegram_id)
         json_data:str = await to_thread(json.dumps, save_data['telegram_id'],
             ensure_ascii=False,indent=4)
         async with aiofiles.open(file_path, mode='w', encoding='utf-8') as f:
