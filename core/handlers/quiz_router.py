@@ -33,7 +33,7 @@ class QuizRouter:
         self.answers_json_path:str = ''
         self.questions_list:List[str] = []
         self.answ_index = 1
-        self.user_answers:Dict[str] = {}
+        self.user_answers:Dict[int, List[str]] = {}
         self.current_qst:str = ''
 
     async def __read_json_file(self) -> Dict:
@@ -68,9 +68,11 @@ class QuizRouter:
             self.logger.exception(exc_info=ex, 
                 msg='При удалении элемента из списка self.questions_list воникла ошибка')    
         
-    def __save_user_answer(self, user_answer: str) -> None:
+    def __save_user_answer(self, telegram_id:int, user_answer: str) -> None:
         """ ## Сохраняет ответ пользователя в словарь """
-        self.user_answers[f'answer_{self.answ_index}'] = user_answer
+        if telegram_id not in self.user_answers:
+            self.user_answers[telegram_id] = []
+        self.user_answers[telegram_id].append(user_answer)
     
     async def __delete_file(self) -> None:
         """ ## Удаляет файл с ответами, если он существует """
@@ -88,7 +90,9 @@ class QuizRouter:
         err_msg:str = f'При получении ответа на вопрос "{self.current_qst}" '+\
             'от пользователя возникла ошибка'
         try:
-            await to_thread(self.__save_user_answer, message.text.strip(' ').strip())
+            await to_thread(self.__save_user_answer, message.from_user.id,
+                message.text.strip(' ').strip())
+            
             if self.questions_list:  # Если список не пустой
                 self.current_qst = self.questions_list[0]  # Сохраняем следующий вопрос
                 await message.answer(
@@ -105,6 +109,10 @@ class QuizRouter:
             await self.__save_json_file()
             await self.__notify_admin_about_new_answ()
             await self.__delete_file()
+
+            # Очищаем содержимое после отправки админу
+            self.user_answers.clear()  # Очищаем словарь с ответами
+            self.current_qst = ''      # Очищаем текущий вопрос
 
         except TelegramBadRequest as ex:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
