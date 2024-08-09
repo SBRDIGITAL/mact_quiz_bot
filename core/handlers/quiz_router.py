@@ -32,7 +32,6 @@ class QuizRouter:
         self.questions_json_path:str = join_path(DATA_DIR_PATH, "questions.json")
         self.answers_json_path:str = join_path(DATA_DIR_PATH)
         self.questions_list:List[str] = []
-        self.answ_index = 1
 
     async def __read_json_file(self) -> Dict:
         """ ## Читает json файл и возвращает содержимое """
@@ -111,8 +110,6 @@ class QuizRouter:
                 await message.answer(
                     f"{message.from_user.first_name}, {new_qst_list[0].lower()}", 
                     reply_markup=await self.bkb.skeep_qst_btn())
-                await to_thread(self.__delete_qst)  # Удаляем вопрос из списка
-                self.answ_index += 1
                 return
             
            
