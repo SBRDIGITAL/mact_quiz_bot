@@ -64,7 +64,7 @@ class QuizRouter:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
         self.answers_json_path = join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
     
-    def __delete_qst(self, qst_list:List[str]) -> None:
+    def __delete_qst(self, qst_list:List[str]) -> List[str]:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
         try:
             del qst_list[0]
@@ -96,7 +96,7 @@ class QuizRouter:
         answer_index: int = state_data.get('answer_index', 0)
         
         try:
-            new_qst_list:List[str] = await self.__delete_qst(old_questions_list)
+            new_qst_list:List[str] = await to_thread(self.__delete_qst, old_questions_list)
             # Сохраняем ответ пользователя
             user_id = message.from_user.id
             if user_id not in old_user_answers:
@@ -143,7 +143,6 @@ class QuizRouter:
         try:
             qst_list:List[str] = await self.__make_questions_list()
             await state.set_state(QuizFormStates.waiting_for_answer)
-            await state.update_data(questions_list = qst_list)
             await state.update_data(user_answers = {})
             await state.update_data(answer_index = 0)
             await call.message.answer('Погнали!')
@@ -151,7 +150,8 @@ class QuizRouter:
                 f"{call.from_user.first_name}, {qst_list[0].lower()}",
                 reply_markup=await self.bkb.skeep_qst_btn())
             
-            await to_thread(self.__delete_qst, qst_list)
+            new_qst_list:List[str] = await to_thread(self.__delete_qst, qst_list)
+            await state.update_data(questions_list = new_qst_list)
 
         except TelegramBadRequest as ex:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
