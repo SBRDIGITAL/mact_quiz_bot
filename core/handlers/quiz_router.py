@@ -42,9 +42,9 @@ class QuizRouter:
         
     async def __save_json_file(self, telegram_id: int, save_data: Dict[str, List[str]]) -> str:
         """ ## Сохраняет в .json файл ответы пользователя """
-        file_path:str = await self.__make_json_answers_file_name(telegram_id)
-        json_data:str = await to_thread(json.dumps, save_data['telegram_id'],
-            ensure_ascii=False,indent=4)
+        file_path:str = await to_thread(self.__make_json_answers_file_name, telegram_id)
+        save_data['telegram_id'] = telegram_id  # Добавляем telegram_id в save_data
+        json_data:str = await to_thread(json.dumps, save_data, ensure_ascii=False, indent=4)
         async with aiofiles.open(file_path, mode='w', encoding='utf-8') as f:
             await f.write(json_data)
 
@@ -59,9 +59,9 @@ class QuizRouter:
         
         return ql
 
-    def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
+    def __make_json_answers_file_name(self, telegram_id:int|str) -> str:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
-        self.answers_json_path = join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
+        return join_path(DATA_DIR_PATH, f'{telegram_id}_user_answers.json')
     
     def __delete_qst(self, qst_list:List[str]) -> List[str]:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
