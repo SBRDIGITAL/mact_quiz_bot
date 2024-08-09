@@ -30,8 +30,6 @@ class QuizRouter:
         self.bot: Bot = bot
         self.logger = MyLogger(name='QuizRouter_logger', is_console=False).get_logger()
         self.questions_json_path:str = join_path(DATA_DIR_PATH, "questions.json")
-        self.answers_json_path:str = join_path(DATA_DIR_PATH)
-        self.questions_list:List[str] = []
 
     async def __read_json_file(self) -> Dict:
         """ ## Читает json файл и возвращает содержимое """
@@ -42,9 +40,9 @@ class QuizRouter:
         
     async def __save_json_file(self, telegram_id: int, save_data: Dict[str, List[str]]) -> str:
         """ ## Сохраняет в .json файл ответы пользователя """
-        file_path:str = await self.__make_json_answers_file_name(telegram_id)
-        json_data:str = await to_thread(json.dumps, save_data['telegram_id'],
-            ensure_ascii=False,indent=4)
+        file_path:str = await to_thread(self.__make_json_answers_file_name, telegram_id)
+        save_data['telegram_id'] = telegram_id  # Добавляем telegram_id в save_data
+        json_data:str = await to_thread(json.dumps, save_data, ensure_ascii=False, indent=4)
         async with aiofiles.open(file_path, mode='w', encoding='utf-8') as f:
             await f.write(json_data)
 
@@ -59,9 +57,9 @@ class QuizRouter:
         
         return ql
 
-    def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
+    def __make_json_answers_file_name(self, telegram_id:int|str) -> str:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
-        self.answers_json_path = join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
+        return join_path(DATA_DIR_PATH, f'{telegram_id}_user_answers.json')
     
     def __delete_qst(self, qst_list:List[str]) -> List[str]:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
@@ -80,7 +78,7 @@ class QuizRouter:
 
     async def __notify_admin_about_new_answ(self, file_path:str) -> None:
         """ ## Отправляет файл администратору """
-        if await to_thread(file_exists, self.answers_json_path):
+        if await to_thread(file_exists, file_path):
             await self.bot.send_document(self.ADMIN_ID, document=FSInputFile(
                 file_path, basename(file_path)),
                 caption='Ответ от нового пользователя!')
@@ -121,13 +119,7 @@ class QuizRouter:
             file_path:str = await self.__save_json_file(message.from_user.id, all_answers)
             await self.__notify_admin_about_new_answ(file_path)
             await self.__delete_file(file_path)
-
-
             await state.clear()
-
-            # Очищаем содержимое после отправки админу
-            self.user_answers.clear()  # Очищаем словарь с ответами
-            self.current_qst = ''      # Очищаем текущий вопрос
 
         except TelegramBadRequest as ex:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
