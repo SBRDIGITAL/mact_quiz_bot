@@ -141,17 +141,17 @@ class QuizRouter:
     async def start_quiz(self, call: CallbackQuery, state: FSMContext) -> None:
         err_msg:str = 'При старте квиза возникла ошибка'
         try:
+            qst_list:List[str] = await self.__make_questions_list()
             await state.set_state(QuizFormStates.waiting_for_answer)
-            await state.update_data(questions_list = await self.__make_questions_list())
+            await state.update_data(questions_list = qst_list)
             await state.update_data(user_answers = {})
             await state.update_data(answer_index = 0)
             await call.message.answer('Погнали!')
             await call.message.answer(
-                f"{call.from_user.first_name}, {self.questions_list[0].lower()}",
+                f"{call.from_user.first_name}, {qst_list[0].lower()}",
                 reply_markup=await self.bkb.skeep_qst_btn())
             
-            self.current_qst = self.questions_list[0]
-            await to_thread(self.__delete_qst)
+            await to_thread(self.__delete_qst, qst_list)
 
         except TelegramBadRequest as ex:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)
