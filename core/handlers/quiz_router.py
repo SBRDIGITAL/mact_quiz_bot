@@ -107,7 +107,7 @@ class QuizRouter:
             await state.update_data(user_answers=old_user_answers)
             await state.update_data(questions_list=new_qst_list) 
                 
-            if self.questions_list:  # Если список не пустой
+            if new_qst_list:  # Если список не пустой
                 await message.answer(
                     f"{message.from_user.first_name}, {new_qst_list[0].lower()}", 
                     reply_markup=await self.bkb.skeep_qst_btn())
