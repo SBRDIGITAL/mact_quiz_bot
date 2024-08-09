@@ -61,7 +61,7 @@ class QuizRouter:
 
     def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
-        self.answers_json_path = join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
+        return join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
     
     def __delete_qst(self, qst_list:List[str]) -> List[str]:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
