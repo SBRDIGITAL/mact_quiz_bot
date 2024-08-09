@@ -3,7 +3,7 @@ import json
 from os.path import join as join_path, exists as file_exists, basename
 from os import remove
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from asyncio import to_thread
 
@@ -30,11 +30,9 @@ class QuizRouter:
         self.bot: Bot = bot
         self.logger = MyLogger(name='QuizRouter_logger', is_console=False).get_logger()
         self.questions_json_path:str = join_path(DATA_DIR_PATH, "questions.json")
-        self.answers_json_path:str = ''
+        self.answers_json_path:str = join_path(DATA_DIR_PATH)
         self.questions_list:List[str] = []
         self.answ_index = 1
-        self.user_answers:Dict[int, List[str]] = {}
-        self.current_qst:str = ''
 
     async def __read_json_file(self) -> Dict:
         """ ## Читает json файл и возвращает содержимое """
@@ -43,72 +41,92 @@ class QuizRouter:
             content = await f.read()
             return json.loads(content)
         
-    async def __save_json_file(self) -> Dict:
+    async def __save_json_file(self, telegram_id: int, save_data: Dict[str, List[str]]) -> str:
         """ ## Сохраняет в .json файл ответы пользователя """
-         # Сначала преобразуем словарь в строку JSON
-        json_data = await to_thread(json.dumps, self.user_answers, ensure_ascii=False, indent=4)
-        async with aiofiles.open(self.answers_json_path, mode='w', encoding='utf-8') as f:
+        file_path:str = await self.__make_json_answers_file_name(telegram_id)
+        json_data:str = await to_thread(json.dumps, save_data['telegram_id'],
+            ensure_ascii=False,indent=4)
+        async with aiofiles.open(file_path, mode='w', encoding='utf-8') as f:
             await f.write(json_data)
 
-    async def __make_questions_list(self) -> None:
+        return file_path
+
+    async def __make_questions_list(self) -> List[str]:
         """ ## Пополняет список вопросов """
         this_questions:Dict = await self.__read_json_file()
+        ql:List[str] = []
         for qst in this_questions['questions'].values():
-            self.questions_list.append(qst) if qst not in self.questions_list else None
+            ql.append(qst) if qst not in ql else None
+        
+        return ql
 
     def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
-        self.answers_json_path = join_path(DATA_DIR_PATH, f'{telegram_id}_user_answers.json')   
+        self.answers_json_path = join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
     
-    def __delete_qst(self) -> None:
+    def __delete_qst(self, qst_list:List[str]) -> None:
         """ ## Удаляет элемент под индексом 0 из списка questions_list """
         try:
-            del self.questions_list[0]
+            del qst_list[0]
         except Exception as ex:
             self.logger.exception(exc_info=ex, 
-                msg='При удалении элемента из списка self.questions_list воникла ошибка')    
-        
-    def __save_user_answer(self, telegram_id:int, user_answer: str) -> None:
-        """ ## Сохраняет ответ пользователя в словарь """
-        if telegram_id not in self.user_answers:
-            self.user_answers[telegram_id] = []
-        self.user_answers[telegram_id].append(user_answer)
-    
-    async def __delete_file(self) -> None:
-        """ ## Удаляет файл с ответами, если он существует """
-        if await to_thread(file_exists, self.answers_json_path):
-            await to_thread(remove, self.answers_json_path)
+                msg='При удалении элемента из списка self.questions_list воникла ошибка')
 
-    async def __notify_admin_about_new_answ(self) -> None:
+        return qst_list 
+    
+    async def __delete_file(self, file_path:str) -> None:
+        """ ## Удаляет файл с ответами, если он существует """
+        if await to_thread(file_exists, file_path):
+            await to_thread(remove, file_path)
+
+    async def __notify_admin_about_new_answ(self, file_path:str) -> None:
         """ ## Отправляет файл администратору """
         if await to_thread(file_exists, self.answers_json_path):
             await self.bot.send_document(self.ADMIN_ID, document=FSInputFile(
-                self.answers_json_path, basename(self.answers_json_path)),
+                file_path, basename(file_path)),
                 caption='Ответ от нового пользователя!')
 
     async def handling_user_answer(self, message: Message, state: FSMContext) -> None:
-        err_msg:str = f'При получении ответа на вопрос "{self.current_qst}" '+\
-            'от пользователя возникла ошибка'
+        err_msg:str = f'При получении ответа на вопрос от пользователя возникла ошибка'
+        
+        # Получаем данные состояния
+        state_data: Dict[str, Any] = await state.get_data()
+        old_questions_list: List[str] = state_data.get('questions_list', [])
+        old_user_answers: Dict[str, List[str]] = state_data.get('user_answers', {})
+        answer_index: int = state_data.get('answer_index', 0)
+        
         try:
-            await to_thread(self.__save_user_answer, message.from_user.id,
-                message.text.strip(' ').strip())
-            
+            new_qst_list:List[str] = await self.__delete_qst(old_questions_list)
+            # Сохраняем ответ пользователя
+            user_id = message.from_user.id
+            if user_id not in old_user_answers:
+                old_user_answers[user_id] = []
+            old_user_answers[user_id].append(message.text.strip())
+
+            # Обновляем состояние
+            await state.update_data(user_answers=old_user_answers)
+            await state.update_data(questions_list=new_qst_list) 
+                
             if self.questions_list:  # Если список не пустой
-                self.current_qst = self.questions_list[0]  # Сохраняем следующий вопрос
                 await message.answer(
-                    f"{message.from_user.first_name}, {self.questions_list[0].lower()}", 
+                    f"{message.from_user.first_name}, {new_qst_list[0].lower()}", 
                     reply_markup=await self.bkb.skeep_qst_btn())
                 await to_thread(self.__delete_qst)  # Удаляем вопрос из списка
                 self.answ_index += 1
                 return
             
-            await state.clear()
+           
             await message.answer(
                 f'{message.from_user.first_name}, вы ответили на все вопросы!\nСпасибо!',
                 reply_markup=ReplyKeyboardRemove())
-            await self.__save_json_file()
-            await self.__notify_admin_about_new_answ()
-            await self.__delete_file()
+            
+            all_answers:Dict[str, List[str]] = state_data.get('user_answers', {})
+            file_path:str = await self.__save_json_file(message.from_user.id, all_answers)
+            await self.__notify_admin_about_new_answ(file_path)
+            await self.__delete_file(file_path)
+
+
+            await state.clear()
 
             # Очищаем содержимое после отправки админу
             self.user_answers.clear()  # Очищаем словарь с ответами
@@ -121,11 +139,12 @@ class QuizRouter:
             await to_thread(self.logger.exception, msg=err_msg, exc_info=ex)    
 
     async def start_quiz(self, call: CallbackQuery, state: FSMContext) -> None:
-        await to_thread(self.__make_json_answers_file_name, call.from_user.id)
         err_msg:str = 'При старте квиза возникла ошибка'
         try:
             await state.set_state(QuizFormStates.waiting_for_answer)
-            await self.__make_questions_list()
+            await state.update_data(questions_list = await self.__make_questions_list())
+            await state.update_data(user_answers = {})
+            await state.update_data(answer_index = 0)
             await call.message.answer('Погнали!')
             await call.message.answer(
                 f"{call.from_user.first_name}, {self.questions_list[0].lower()}",
