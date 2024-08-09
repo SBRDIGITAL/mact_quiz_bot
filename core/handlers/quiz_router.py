@@ -59,7 +59,7 @@ class QuizRouter:
         
         return ql
 
-    def __make_json_answers_file_name(self, telegram_id:int|str) -> None:
+    def __make_json_answers_file_name(self, telegram_id:int|str) -> str:
         """ ## Создаёт имя файла на основе telegram_id пользователя """
         return join_path(DATA_DIR_PATH, f'_{telegram_id}_user_answers.json')
     
